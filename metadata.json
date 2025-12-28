@@ -1,0 +1,8 @@
+{
+  "name": "Vimo",
+  "description": "A real-time chat and video calling application built with React, Firebase, and PeerJS, inspired by imo. It features 1-to-1 private messaging, a contact list with online status indicators, and WebRTC-based video calls.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
