@@ -1,7 +1,7 @@
 
-import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getDatabase } from 'firebase/database';
+import firebase from 'firebase/app';
+import 'firebase/auth';
+import 'firebase/database';
 
 // IMPORTANT: Replace with your Firebase project's configuration
 // You can get this from the Firebase console. It's recommended to use environment variables.
@@ -15,9 +15,15 @@ const firebaseConfig = {
   appId: process.env.REACT_APP_FIREBASE_APP_ID || "YOUR_APP_ID",
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getDatabase(app);
-const googleProvider = new GoogleAuthProvider();
+export const isConfigPlaceholder = firebaseConfig.apiKey === "YOUR_API_KEY" || !firebaseConfig.apiKey;
 
-export { app, auth, db, googleProvider };
+// FIX: Use v8 syntax for Firebase initialization.
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+
+const auth = firebase.auth();
+const db = firebase.database();
+const googleProvider = new firebase.auth.GoogleAuthProvider();
+
+export { auth, db, googleProvider };

@@ -1,13 +1,16 @@
 
 import React from 'react';
-import type { User } from 'firebase/auth';
+// FIX: Update imports for Firebase v8 compatibility.
+import firebase from 'firebase/app';
+import 'firebase/auth';
 import type { VimoUser, PresenceState } from '../types';
 import { LogoutIcon } from './icons';
 
 interface ContactListProps {
   users: VimoUser[];
   presence: PresenceState;
-  currentUser: User;
+  // FIX: Use firebase.User for the user type.
+  currentUser: firebase.User;
   onSelectUser: (user: VimoUser) => void;
   selectedUser: VimoUser | null;
   onLogout: () => void;

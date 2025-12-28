@@ -1,11 +1,6 @@
 
 import React, { useState } from 'react';
-import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  signInWithPopup,
-  updateProfile
-} from 'firebase/auth';
+// FIX: Remove v9 imports and use v8 methods on auth object.
 import { ref, set } from 'firebase/database';
 import { auth, db, googleProvider } from '../config/firebase';
 import type { VimoUser } from '../types';
@@ -25,23 +20,27 @@ const Auth: React.FC = () => {
 
     try {
       if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
+        // FIX: Use v8 syntax for signing in.
+        await auth.signInWithEmailAndPassword(email, password);
       } else {
         if (!displayName.trim()) {
             setError("Display name is required.");
             setLoading(false);
             return;
         }
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        // FIX: Use v8 syntax for creating a user and updating profile.
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         const user = userCredential.user;
-        await updateProfile(user, { displayName });
-        const newUser: VimoUser = {
-          uid: user.uid,
-          displayName: displayName,
-          email: user.email,
-          photoURL: user.photoURL
-        };
-        await set(ref(db, `users/${user.uid}`), newUser);
+        if (user) {
+          await user.updateProfile({ displayName });
+          const newUser: VimoUser = {
+            uid: user.uid,
+            displayName: displayName,
+            email: user.email,
+            photoURL: user.photoURL
+          };
+          await set(ref(db, `users/${user.uid}`), newUser);
+        }
       }
     } catch (err: any) {
       setError(err.message);
@@ -54,15 +53,18 @@ const Auth: React.FC = () => {
     setError('');
     setLoading(true);
     try {
-      const result = await signInWithPopup(auth, googleProvider);
+      // FIX: Use v8 syntax for Google Sign-In.
+      const result = await auth.signInWithPopup(googleProvider);
       const user = result.user;
-      const newUser: VimoUser = {
-          uid: user.uid,
-          displayName: user.displayName,
-          email: user.email,
-          photoURL: user.photoURL
-        };
-      await set(ref(db, `users/${user.uid}`), newUser);
+      if (user) {
+        const newUser: VimoUser = {
+            uid: user.uid,
+            displayName: user.displayName,
+            email: user.email,
+            photoURL: user.photoURL
+          };
+        await set(ref(db, `users/${user.uid}`), newUser);
+      }
     } catch (err: any) {
        setError(err.message);
     } finally {

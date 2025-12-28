@@ -1,13 +1,16 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import type { User } from 'firebase/auth';
+// FIX: Update imports for Firebase v8 compatibility.
+import firebase from 'firebase/app';
+import 'firebase/auth';
 import type { VimoUser, ChatMessage } from '../types';
 import { VideoIcon, SendIcon } from './icons';
 
 interface ChatWindowProps {
   selectedUser: VimoUser | null;
   messages: ChatMessage[];
-  currentUser: User;
+  // FIX: Use firebase.User for the user type.
+  currentUser: firebase.User;
   onSendMessage: (text: string) => void;
   onStartCall: (user: VimoUser) => void;
 }

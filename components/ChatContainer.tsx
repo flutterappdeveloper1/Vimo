@@ -1,16 +1,19 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { User } from 'firebase/auth';
+// FIX: Update imports for Firebase v8 compatibility.
+import firebase from 'firebase/app';
+import 'firebase/auth';
 import { db, auth } from '../config/firebase';
 import { ref, onValue, off, onDisconnect, set, serverTimestamp, goOnline, goOffline, get, child, push, orderByChild, query, limitToLast } from 'firebase/database';
 import type { VimoUser, ChatMessage, PresenceState, IncomingCall } from '../types';
 import ContactList from './ContactList';
 import ChatWindow from './ChatWindow';
 import VideoCall from './VideoCall';
-import type { Peer } from 'peerjs';
+import type { Peer, MediaConnection } from 'peerjs';
 
 interface ChatContainerProps {
-  currentUser: User;
+  // FIX: Use firebase.User for the user type.
+  currentUser: firebase.User;
 }
 
 const ChatContainer: React.FC<ChatContainerProps> = ({ currentUser }) => {
@@ -24,18 +27,28 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ currentUser }) => {
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
   const [activeCall, setActiveCall] = useState(false);
+  const [activeCallConnection, setActiveCallConnection] = useState<MediaConnection | null>(null);
+
 
   const getChatId = (uid1: string, uid2: string) => {
     return uid1 < uid2 ? `${uid1}_${uid2}` : `${uid2}_${uid1}`;
   };
 
+  const endCall = useCallback(() => {
+    myStreamRef.current?.getTracks().forEach(track => track.stop());
+    remoteStream?.getTracks().forEach(track => track.stop());
+    myStreamRef.current = null;
+    setRemoteStream(null);
+
+    activeCallConnection?.close();
+    setActiveCallConnection(null);
+    
+    setActiveCall(false);
+  }, [activeCallConnection, remoteStream]);
+
   // Initialize PeerJS and Firebase presence
   useEffect(() => {
-    const peer = new (window as any).Peer(currentUser.uid, {
-      host: 'localhost',
-      port: 9000,
-      path: '/myapp'
-    });
+    const peer = new (window as any).Peer(currentUser.uid);
     peerRef.current = peer;
 
     peer.on('call', (call) => {
@@ -79,7 +92,6 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ currentUser }) => {
       snapshot.forEach(childSnapshot => {
         presenceData[childSnapshot.key!] = childSnapshot.val().state;
       });
-      // FIX: Corrected typo 'presen ceData' to 'presenceData'
       setPresence(presenceData);
     });
 
@@ -126,11 +138,14 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ currentUser }) => {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       myStreamRef.current = stream;
       const call = peerRef.current?.call(userToCall.uid, stream);
-      call?.on('stream', (remoteStream) => {
-        setRemoteStream(remoteStream);
-        setActiveCall(true);
-      });
-       call?.on('close', endCall);
+      if (call) {
+        setActiveCallConnection(call);
+        call.on('stream', (remoteStream) => {
+          setRemoteStream(remoteStream);
+          setActiveCall(true);
+        });
+        call.on('close', endCall);
+      }
     } catch (error) {
       console.error("Failed to get local stream", error);
     }
@@ -141,13 +156,15 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ currentUser }) => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         myStreamRef.current = stream;
-        incomingCall.connection.answer(stream);
-        incomingCall.connection.on('stream', (remoteStream) => {
+        const conn = incomingCall.connection;
+        conn.answer(stream);
+        setActiveCallConnection(conn);
+        conn.on('stream', (remoteStream) => {
             setRemoteStream(remoteStream);
             setActiveCall(true);
             setIncomingCall(null);
         });
-        incomingCall.connection.on('close', endCall);
+        conn.on('close', endCall);
     } catch (error) {
         console.error("Failed to answer call", error);
     }
@@ -157,16 +174,6 @@ const ChatContainer: React.FC<ChatContainerProps> = ({ currentUser }) => {
     incomingCall?.connection.close();
     setIncomingCall(null);
   };
-  
-  const endCall = useCallback(() => {
-    myStreamRef.current?.getTracks().forEach(track => track.stop());
-    myStreamRef.current = null;
-    setRemoteStream(null);
-    setActiveCall(false);
-    // This is tricky, we need to close all connections.
-    // A better approach would be to track all active calls in a state array.
-    peerRef.current?.connections[Object.keys(peerRef.current?.connections)[0]]?.[0].close();
-  }, []);
 
   const handleLogout = () => {
     goOffline(db);
